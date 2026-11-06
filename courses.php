@@ -1,57 +1,117 @@
-<!DOCTYPE html>
-<html lang="kk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Онлайн курстар</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
+<?php
 
-<header>
-    <div class="container navbar">
-        <h2>Online Courses</h2>
+require_once "config/db.php";
 
-        <nav>
-            <a href="index.php">Басты бет</a>
-            <a href="courses.php">Курстар</a>
-            <a href="login.php">Кіру</a>
-        </nav>
-    </div>
-</header>
+$search = trim($_GET["search"] ?? "");
+$category = $_GET["category"] ?? "";
+
+$sql = "SELECT courses.*, categories.name AS category_name
+        FROM courses
+        LEFT JOIN categories
+        ON courses.category_id = categories.id
+        WHERE 1=1";
+
+$params = [];
+
+if ($search !== "") {
+    $sql .= " AND (courses.title LIKE ?
+               OR courses.description LIKE ?)";
+
+    $params[] = "%$search%";
+    $params[] = "%$search%";
+}
+
+if ($category !== "" && ctype_digit($category)) {
+    $sql .= " AND courses.category_id = ?";
+    $params[] = (int)$category;
+}
+
+$sql .= " ORDER BY courses.id DESC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+
+$courses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+$categories = $pdo->query(
+    "SELECT * FROM categories ORDER BY name"
+)->fetchAll(PDO::FETCH_ASSOC);
+
+$pageTitle = "Онлайн курстар";
+
+require_once "includes/header.php";
+
+?>
 
 <section class="container courses">
 
-    <h1>Біздің онлайн курстар</h1>
+    <h1>Онлайн курстар</h1>
 
-    <input type="text" id="search"
-           placeholder="Курс іздеу...">
+    <form method="GET">
 
-    <div class="cards" id="courseList">
+        <input
+            type="text"
+            name="search"
+            placeholder="Курс іздеу..."
+            value="<?= htmlspecialchars($search) ?>"
+        >
 
-        <div class="card">
-            <h3>Web бағдарламалау</h3>
-            <p>HTML, CSS және PHP негіздері.</p>
-            <button>Курс туралы</button>
-        </div>
+        <select name="category">
+            <option value="">Барлық санаттар</option>
 
-        <div class="card">
-            <h3>Python бағдарламалау</h3>
-            <p>Python тілін үйрену.</p>
-            <button>Курс туралы</button>
-        </div>
+            <?php foreach ($categories as $cat): ?>
 
-        <div class="card">
-            <h3>Графикалық дизайн</h3>
-            <p>Дизайн және шығармашылық.</p>
-            <button>Курс туралы</button>
-        </div>
+                <option
+                    value="<?= $cat['id'] ?>"
+                    <?= $category == $cat['id'] ? 'selected' : '' ?>
+                >
+                    <?= htmlspecialchars($cat['name']) ?>
+                </option>
+
+            <?php endforeach; ?>
+
+        </select>
+
+        <button type="submit">Іздеу</button>
+
+    </form>
+
+    <div class="cards">
+
+        <?php foreach ($courses as $course): ?>
+
+            <div class="card">
+
+                <h3>
+                    <?= htmlspecialchars($course['title']) ?>
+                </h3>
+
+                <p>
+                    <?= htmlspecialchars($course['description']) ?>
+                </p>
+
+                <p>
+                    Санаты:
+                    <?= htmlspecialchars($course['category_name'] ?? 'Санатсыз') ?>
+                </p>
+
+                <p>
+                    Бағасы:
+                    <?= htmlspecialchars($course['price']) ?> ₸
+                </p>
+
+            </div>
+
+        <?php endforeach; ?>
+
+        <?php if (empty($courses)): ?>
+
+            <p>Курстар табылмады.</p>
+
+        <?php endif; ?>
 
     </div>
 
 </section>
 
-<script src="assets/js/script.js"></script>
-
-</body>
-</html>
+<?php require_once "includes/footer.php"; ?>

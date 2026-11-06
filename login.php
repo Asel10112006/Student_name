@@ -1,21 +1,67 @@
-<!DOCTYPE html>
-<html lang="kk">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Жүйеге кіру</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-</head>
-<body>
+<?php
+
+require_once "config/db.php";
+
+$error = "";
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+
+    $email = trim($_POST["email"] ?? "");
+    $password = $_POST["password"] ?? "";
+
+    if ($email === "" || $password === "") {
+
+        $error = "Барлық өрістерді толтырыңыз.";
+
+    } else {
+
+        $sql = "SELECT * FROM users WHERE email = ?";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$email]);
+
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($user && password_verify(
+            $password,
+            $user["password"]
+        )) {
+
+            session_regenerate_id(true);
+
+            $_SESSION["user_id"] = $user["id"];
+            $_SESSION["user_name"] = $user["name"];
+            $_SESSION["role"] = $user["role"];
+
+            header("Location: courses.php");
+            exit;
+
+        } else {
+
+            $error = "Email немесе құпиясөз қате.";
+        }
+    }
+}
+
+$pageTitle = "Жүйеге кіру";
+require_once "includes/header.php";
+
+?>
 
 <div class="form-container">
 
     <h2>Жүйеге кіру</h2>
 
-    <form action="login.php" method="POST">
+    <?php if ($error): ?>
+        <p style="color:red;">
+            <?= htmlspecialchars($error) ?>
+        </p>
+    <?php endif; ?>
+
+    <form method="POST">
 
         <input type="email" name="email"
-               placeholder="Электрондық пошта" required>
+               placeholder="Email" required>
 
         <input type="password" name="password"
                placeholder="Құпиясөз" required>
@@ -30,5 +76,4 @@
 
 </div>
 
-</body>
-</html>
+<?php require_once "includes/footer.php"; ?>
